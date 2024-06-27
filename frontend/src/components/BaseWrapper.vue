@@ -41,7 +41,7 @@ export default {
 </script>
 <style lang="scss">
 .BaseWrapper {
-  $outdent: 20px;
+  $outdent: 40px;
   background: #ffffff;
   box-shadow: 4px 20px 35px 0px rgba(0, 0, 0, 0.1);
   border-radius: 25px;
@@ -50,7 +50,7 @@ export default {
   flex-direction: column;
   padding: 20px 40px;
   overflow: hidden;
-  width: auto;
+  width: 100%;
   margin-bottom: 60px;
   visibility: visible;
 
@@ -59,21 +59,14 @@ export default {
   }
 
   &.is-red {
-    > .TitleWrapper {
+    .TitleWrapper {
       background-color: color(red);
-    }
-    .Title {
-      color: color(text-white);
     }
   }
 
   &.is-green {
-    >.TitleWrapper {
+    .TitleWrapper {
       background-color: color(green);
-    }
-
-    .Title {
-      color: color(text-white);
     }
   }
 
@@ -105,7 +98,7 @@ export default {
 
   .Title {
     font-size: rem(20px);
-    
+    color: color(text-white);
     font-weight: 700;
   }
 
@@ -115,7 +108,7 @@ export default {
   }
 
   @media (min-width: breakpoint(tablet-portrait)) {
-    width: auto;
+    width: 100%;
     transform: translateX(0);
     padding: 20px 40px;
   }

@@ -64,6 +64,7 @@ import api from '@/api'
 
 var moment = require('moment')
 
+
 export default {
   name: 'Tags',
   components: {
@@ -189,47 +190,52 @@ export default {
       this.qualifyWorker(workerID);
     },
     handleQualifyAll() {
-      console.log("Qualifying submitted Workers: ")
+      //console.log("Qualifying submitted Workers: ")
       for (let worker of this.submitted) {
-        console.log("Asking for Qualifying Worker " + worker.id + " with Qualification " + this.awardid);
+        //console.log("Asking for Qualifying Worker " + worker.id + " with Qualification " + this.awardid);
         this.qualifyWorker(worker.id);
       }
 
-      console.log("Qualifying approved Workers: ")
+      //console.log("Qualifying approved Workers: ")
       for (let worker of this.approved) {
-        console.log("Asking for Qualifying Worker " + worker.id + " with Qualification " + this.awardid);
+        //console.log("Asking for Qualifying Worker " + worker.id + " with Qualification " + this.awardid);
         this.qualifyWorker(worker.id);
       }
 
-      console.log("Qualifying rejected Workers: ")
+      //console.log("Qualifying rejected Workers: ")
       for (let worker of this.rejected) {
-        console.log("Asking for Qualifying Worker " + worker.id + " with Qualification " + this.awardid);
+        //console.log("Asking for Qualifying Worker " + worker.id + " with Qualification " + this.awardid);
         this.qualifyWorker(worker.id);
       }
     },
     async qualifyWorker(workerID) {
       //this.modalRejectIsVisible = true
+      
       this.workerID = workerID
       let awardid = this.awardid || ''
-      console.log("Qualifying Worker " + workerID + " with Qualification " + awardid);
+      //console.log("Qualifying Worker " + workerID + " with Qualification " + awardid);
+      
 
-      let res = await api.qualifyWorker({ awardQualificationID: awardid, workerID })
+     
+        let res = await api.qualifyWorker({ awardQualificationID: awardid, workerID })
 
-      if (res.success) {
-        //await this.getWorkers()
-        console.log("Qualified " + workerID);
-        this.$toasted.show(res.message, {
-          type: 'success',
-          position: 'bottom-right',
-          duration: 3000,
-        })
-      } else {
-        this.$toasted.show(res.message, {
-          type: 'error',
-          position: 'bottom-right',
-          duration: 3000,
-        })
-      }
+        if (res.success) {
+          //await this.getWorkers()
+          //console.log("Qualified " + workerID + " with result " + JSON.stringify(res) );
+          if (!res.data.skipped) {
+            this.$toasted.show(res.message, {
+              type: 'success',
+              position: 'bottom-right',
+              duration: 3000,
+            })
+          }
+        } else {
+          this.$toasted.show(res.message, {
+            type: 'error',
+            position: 'bottom-right',
+            duration: 3000,
+          })
+        }
     },
     closeModal() {
       this.feedback = ''

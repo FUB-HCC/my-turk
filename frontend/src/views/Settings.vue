@@ -75,6 +75,7 @@ export default {
           awardQualificationName: '',
           awardQualificationDescription: '',
           awardQualificationId: '',
+          excludePriorQualification: '',
           hitExpiresAfterDays: '',
           assignmentDurationInMinutes: '',
           assignmentsPerHit: '',
@@ -150,6 +151,16 @@ export default {
             disabled: true,
             placeholder:
               'auto-generated from qualification name and qualification description',
+          },
+          {
+            name: 'Exclude Prior Qualification',
+            value: '',
+            placeholder: 'Fill in qualification ID if you want to exclude workers with a prior qualification',
+          },
+          {
+            name: 'Assign Qualification to',
+            value: '',
+            placeholder: 'Fill in worker IDs of worker you want to assign this qualification to, seperated by ,',
           },
           {
             name: 'Reward per Assignment',

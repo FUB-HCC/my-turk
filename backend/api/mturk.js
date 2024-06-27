@@ -7,6 +7,7 @@ const endpoint_default = 'https://mturk-requester.us-east-1.amazonaws.com';
 var endpoint = endpoint_default;
 const region = 'us-east-1';
 const app = express();
+var qualified = {};
 
 let mturk;
 
@@ -86,6 +87,7 @@ app.post('/saveExperiment', async (req, res) => {
   const { awardQualificationName, awardQualificationDescription, awardQualificationId } = data.experiment;
 
   if (awardQualificationName && awardQualificationDescription) {
+    
     let result = await createQualificationType(awardQualificationName, awardQualificationDescription).catch(err => ({ error: err }));
 
     if (!result.error) {
@@ -99,6 +101,22 @@ app.post('/saveExperiment', async (req, res) => {
     //     error: result.error.code
     //   });
     // }
+    
+    // assign qualification to specified workerIDs
+    workerIDs=data.experiment.assignQualificationTo;
+    if (workerIDs && (workerIDs !== "") ) {
+      workerArray=workerIDs.split(",");
+      for (index in workerArray) {
+        var workerID = workerArray[index].trim();
+        let result = await qualify({ awardQualificationID: data.experiment.awardQualificationId, workerID: workerID });
+        console.log(result);
+        if (!result.error) {
+            console.log('Qualification assigned to ' + workerID);
+        } else {
+            console.log("Something went wrong while assigning qualification to " + workerID + ": " + result.error.errors);
+        }
+      }
+    }
   }
 
   let result = await mongo.updateData({ _id: ObjectId(id) }, data.experiment);
@@ -146,12 +164,39 @@ app.post('/getExperiments', async (req, res) => {
       exp.completed = 0;
       exp.maxAssignments = 0;
 
+      console.log("requesting HIT list");
+      let res = (await listHITs({MaxResults: 100}).catch(err => ({ error: err })));
+      let mHITList = [];
+      if (!res.error) {
+        mHITList = res.HITs;
+        console.log("Got HITList with " + mHITList.length + " entries");
+      } else {
+        console.log("error while requesting HITlist: " + res.error);
+      }
+
+      
+      let mHITs = {}
+      for (var j = 0; j<mHITList.length; j++) {
+        var hitDetail = mHITList[j];
+        mHITs[hitDetail.HITId] = hitDetail;
+      }
+      console.log("HITlist split into HITs");
+
       for (var j = 0; hits && j < hits.length; j++) {
         let hit = hits[j];
-        let mHIT = (await getHIT({ id: hit.id }).catch(err => ({ error: err })))
-          .HIT;
 
-        if (!mHIT.error) {
+        console.log("Searching for HIT " + hit.id);
+        let mHIT = {}
+        if (mHITs.hasOwnProperty(hit.id)) {
+          mHIT = mHITs[hit.id];
+          console.log("HIT found with id " + mHIT.HITId);
+        } else {
+          console.log("HIT not found in list, request via gatHIT")
+          mHIT = (await getHIT({id: hit.id}).catch(err => ({ error: err }))).HIT;
+        }
+
+
+        if (mHIT) {
           let hitID = mHIT.HITId;
           let maxAssignments = mHIT.MaxAssignments;
           let available = mHIT.NumberOfAssignmentsAvailable;
@@ -456,9 +501,20 @@ const createHIT = async params => {
   }
   console.log("Guard is " + params.guardHITbyQualification);
   if (params.guardHitByQualification) {
+    console.log("Adding guarding qualification to requirements");
     requirements.QualificationRequirements.push(
       {
         QualificationTypeId: params.awardQualificationId,
+        Comparator: 'DoesNotExist',
+      }
+    );
+  }
+  console.log("Prior Qualification is " + params.excludePriorQualification);
+  if (params.excludePriorQualification) {
+    console.log("Adding prior qualification to requirements");
+    requirements.QualificationRequirements.push(
+      {
+        QualificationTypeId: params.excludePriorQualification,
         Comparator: 'DoesNotExist',
       }
     );
@@ -486,6 +542,23 @@ const getHIT = ({ id }) => {
   // TODO show error as toast.
   return new Promise((resolve, reject) => {
     mturk.getHIT(params, (err, data) => {
+      if (err) {
+        console.log(err, err.stack); // an error occurred
+        reject(err);
+      } else {
+        console.log(data); // successful response
+        resolve(data);
+      }
+    });
+  });
+};
+
+const listHITs = params => {
+  connectToMturk();
+
+  // TODO show error as toast.
+  return new Promise((resolve, reject) => {
+    mturk.listHITs(params, (err, data) => {
       if (err) {
         console.log(err, err.stack); // an error occurred
         reject(err);
@@ -558,21 +631,36 @@ const listAssignments = ({ id }) => {
 };
 
 const qualify = ({ awardQualificationID, workerID }) => {
+
+  if (qualified[awardQualificationID] == undefined) qualified[awardQualificationID] = [];
+  console.log("Qualifying worker " + workerID + " with " + awardQualificationID);
+  //console.log("Qualified has " + qualified[awardQualificationID].length + " entries");
   let params = {
     QualificationTypeId: awardQualificationID,
     WorkerId: workerID,
-    SendNotification: false
+    SendNotification: false,
+    IntegerValue: 1,
   };
+
   return new Promise((resolve, reject) => {
-    mturk.associateQualificationWithWorker(params, (err, data) => {
-      if (err) {
-        console.log(err, err.stack); // an error occurred
-        reject(err);
-      } else {
-        console.log(data); // successful response
-        resolve(data);
-      }
-    });
+    if (!qualified[awardQualificationID].includes(workerID))
+    {
+      mturk.associateQualificationWithWorker(params, (err, data) => {
+        if (err) {
+          //console.log("Error in Response from MTurk");
+          console.log(err, err.stack); // an error occurred
+          reject(err);
+        } else {
+          console.log(data); // successful response
+          qualified[awardQualificationID].push(workerID);
+          resolve(data);
+        }
+      });
+    } else {
+      //console.log("Worker has already been qualified, skipping");
+      resolve({skipped: true});
+    }
+    
   });
 };
 
